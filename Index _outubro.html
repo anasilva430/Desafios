@@ -231,7 +231,7 @@
             <label for="nomeGrupo">Nome do Grupo/Equipa:</label>
             <input type="text" id="nomeGrupo" name="nomeGrupo" required>
             
-            <label for="emailDestino">Email do Grupo para Confirmação do Registo e Resultados:</label>
+            <label for="emailDestino">Email de um elemento do grupo para Confirmação do Registo e Resultados:</label>
             <input type="email" id="emailDestino" name="emailDestino" required>
 
             <div class="membro-campos">
@@ -293,7 +293,7 @@
         <h3 style="margin-top: 20px;">Saldo Final: <span id="resultadoSaldoFinal" class="saldo-jogo"></span></h3>
         <p><strong>Tempo Total de Jogo:</strong> <span id="resultadoTempo"></span></p>
         
-        <p style="margin-top: 25px; color: #6c757d;">A pontuação e o tempo total de jogo serão avaliados para a classificação final. O resultado foi enviado para o seu email (docente) e para o email do grupo.</p>
+        <p style="margin-top: 25px; color: #6c757d;">A pontuação e o tempo total de jogo serão avaliados para a classificação final. O resultado foi enviado para o seu email (aluno) e para o email dos docentes coordenadores.</p>
         
         <button class="btn-reiniciar" onclick="location.reload()">Reiniciar Jogo</button>
     </div>
@@ -326,7 +326,7 @@
     let rodada = 0;
     let saldo = 500.00; 
     let penalizacaoRisco = 0; 
-    let pontuacaoTotal = 0; // <<<<< NOVO: Adicionado para acumular a pontuação total
+    let pontuacaoTotal = 0; 
     let tempoInicio;
     let timerInterval;
     let codigoRegisto = '';
@@ -336,99 +336,191 @@
 
 
 
-    // Estrutura das Decisões (Mantida para consistência e correção do NaN)
+    // ESTRUTURA DAS DECISÕES (NOVOS CENÁRIOS DE ALTA DIFICULDADE INTEGRADOS)
     const decisoes = [
-        { 
-            id: 1, 
-            titulo: "Orçamento Pessoal: Necessário vs. Supérfluo",
-            pergunta: "Para começar o mês, precisam de um novo par de sapatilhas (necessário: as velhas estão rotas) e um *gadget* tecnológico (supérfluo). O vosso saldo é de 500€.",
+        {
+            rodada: 1,
+            titulo: "O Primeiro Rendimento e a Tentação (Necessidade vs Desejo)",
+            tema: "Planeamento e Gestão do Orçamento: Necessidades e Desejos",
+            pergunta: "Recebe 500€. Precisa de 200€ para se deslocar durante o mês. Um novo PC Gamer (1200€) está em promoção, e pensa em comprar às prestações.",
             opcoes: [
-                { texto: "Comprar apenas as sapatilhas (80€).", custo: 80, pontuacao: 3, feedback: "✅ Ótima gestão: Priorizaram o necessário e mantiveram o controlo do orçamento. Saldo Forte.", consequencia: null },
-                { texto: "Comprar as sapatilhas (80€) e o *gadget* a crédito (200€) com juros de 10%.", custo: 80, pontuacao: -2, feedback: "❌ Má gestão e assunção de crédito desnecessário. O *gadget* não era essencial. O custo futuro aumentou.", consequencia: (s) => s - (200 * 1.10), penalizacao: 1 }, 
-                { texto: "Não comprar nada e guardar tudo.", custo: 0, pontuacao: 1, feedback: "⚠️ Bom, mas desnecessariamente restritivo. Falharam em suprir uma necessidade real. Saldo igual.", consequencia: null }
+                // C: Garante o essencial e poupa o resto para o PC (melhor decisão)
+                { texto: "Separa os 200€ para a sua mobilidade e poupa o restante (300€).", custo: 200, pontuacao: 15, feedback: "Inteligente. Garantiu a *necessidade* e iniciou a *poupança* com disciplina.", consequencia: (s) => s + 300, penalizacao: 0 },
+                // A: Compra o PC (desejo), gastando os 500€ e arranjando 700€ de dívida (Alto Risco)
+                { texto: "Gasta os 500€ num sinal para o PC Gamer e adia a sua mobilidade.", custo: 500, pontuacao: -15, feedback: "Péssimo. Priorizou o *desejo*. Começa o jogo sem margem e com *dívida* (Risco/Crédito).", consequencia: (s) => s - 700, penalizacao: 3 },
+            ]
+        },
+        {
+            rodada: 2,
+            titulo: "O Poder do Hábito",
+            tema: "Poupança: Objetivos da Poupança; Aplicações da Poupança",
+            pergunta: "Tem 400€ a mais este mês. O banco oferece: A) Conta à Ordem (recebe 8€ de juros); B) Certificado de Aforro (2% ao ano, capitalização trimestral). O dinheiro será para daqui a 2 anos.",
+            opcoes: [
+                // B: Escolha de juro composto (melhor)
+                { 
+                    texto: "Coloca os 400€ no Certificado de Aforro (2% composto).", 
+                    custo: -400, // Isto representa uma entrada de 400€ no saldo, que será subtraída na lógica da função tomarDecisao
+                    pontuacao: 20, 
+                    feedback: "Excelente. Compreende o *juro composto* e a aplicação a *médio prazo*. Potencializa o crescimento.", 
+                    // CORREÇÃO CRÍTICA: s + Principal * (1 + Taxa/Frequência) ^ (Frequência * Anos)
+                    // Frequência = 4 (trimestral), Anos = 2, Total de capitalizações = 8
+                    consequencia: (s) => s + 400 * Math.pow((1 + (0.02 / 4)), 8), 
+                    penalizacao: 0 
+                },
+                // A: Escolha de juro simples (pouco retorno)
+                { 
+                    texto: "Deixa os 400€ na Conta à Ordem (1% simples).", 
+                    custo: -400, // Entrada de 400€
+                    pontuacao: 5, 
+                    feedback: "Poupa, mas a escolha da aplicação é fraca. O dinheiro não trabalha o suficiente (Juro Composto).", 
+                    // CÁLCULO ORIGINAL (MANTIDO, mas simplificado para um ano): s + 400 + (400 * 0.01) + (400 * 0.01)
+                    consequencia: (s) => s + 400 * (1 + 0.01 * 2), // Juro simples de 2 anos
+                    penalizacao: 1 
+                },
+            ]
+        },
+        {
+            rodada: 3,
+            titulo: "O Custo Real do Crédito",
+            tema: "Crédito: Custos do Crédito",
+            pergunta: "Quer um bilhete de festival (250€). A loja anuncia: 'Crédito 0% de Juros' (Taxa Nominal 0%), e a TAEG (Custo Total) é 10% com o seguro e as comissões. Paga 12x 21.80€.",
+            opcoes: [
+                { 
+                    texto: "Paga os 250€ do seu saldo, evitando qualquer crédito.", 
+                    custo: 250, 
+                    pontuacao: 15, 
+                    feedback: "Melhor opção. Evitou a dívida e o custo real da TAEG.", 
+                    consequencia: null, 
+                    penalizacao: 0 
+                },
+                { 
+                    texto: "Aceita a oferta de crédito, pois '0% de juros' parece bom.", 
+                    custo: 0, // Mantido a 0 porque o grupo não está a usar o saldo disponível *imediatamente*
+                    pontuacao: -10, 
+                    feedback: "Caiu na armadilha do 0%. Falhou em identificar o *Custo Real do Crédito* (TAEG) devido a comissões. O custo total de 261.60€ será subtraído do seu saldo agora, representando a dívida imediata.", 
+                    // CORREÇÃO: Subtraímos o custo total da dívida (12 * 21.80 = 261.60€)
+                    consequencia: (s) => s - 261.60, 
+                    penalizacao: 2 
+                },
+            ]
+        },
+        {
+            rodada: 4,
+            titulo: "O Imprevisto e o Fundo de Emergência",
+            tema: "Risco e Incerteza; Planeamento",
+            // Ajustado para refletir o saldo atual na string (embora o JS substitua dinamicamente)
+            pergunta: "O seu rendimento do part-time é cortado em 50% por 3 meses (perda total de 750€). O seu saldo atual é de [SALDO_AQUI] €. Como gere a situação para cobrir a perda?", 
+            opcoes: [
+                { 
+                    texto: "Se o saldo for >= 750€, usa o Fundo de Emergência.", 
+                    custo: 750, 
+                    pontuacao: (saldo >= 750 ? 25 : -25), 
+                    feedback: (saldo >= 750 ? "Perfeito. O *Planeamento* e o *Fundo de Emergência* mitigaram a incerteza." : "Mau. Tentou usar o fundo, mas não tinha o suficiente. Risco de Incumprimento."),
+                    // Lógica: O saldo (s) já foi subtraído do custo (750€). A consequência é nula.
+                    consequencia: (s) => s, 
+                    penalizacao: (saldo >= 750 ? 0 : 3) 
+                },
+                { 
+                    texto: "Vende um bem (exemplo: telemóvel) por 400€ e pede um empréstimo familiar para o resto.", 
+                    // Custo 0, mas a consequência simula o custo total da perda de 750€ (400€ ganho + 350€ dívida)
+                    custo: 0, 
+                    pontuacao: -10, 
+                    feedback: "Opção drástica. Não tinha Fundo de Emergência e teve de descapitalizar-se, assumindo uma dívida familiar.", 
+                    // CORREÇÃO: s - 750 (perda) + 400 (venda) + 350 (empréstimo) = s. O saldo não se altera, a punição é na pontuação/risco.
+                    consequencia: (s) => s, 
+                    penalizacao: 2 
+                },
+            ]
+        },
+        {
+            rodada: 5,
+            titulo: "Esquemas Ponzi e Ética",
+            tema: "Ética e Responsabilidade Social; Prevenção de Fraude",
+            pergunta: "Um colega promete 30% de retorno em 1 mês numa 'crypto garantida' e pede que você recrute 3 amigos para ganhar um bónus (100€).",
+            opcoes: [
+                { texto: "Denuncia o esquema de pirâmide/Ponzi às autoridades e avisa os amigos.", custo: 0, pontuacao: 30, feedback: "Atitude exemplar! Demonstra ética, *responsabilidade social* e prevenção de fraude (Sistema Financeiro).", consequencia: null, penalizacao: 0 },
+                { texto: "Investe 100€ (do seu bolso), mas recusa recrutar amigos.", custo: 100, pontuacao: -10, feedback: "Apesar de ético, é irresponsável com o seu dinheiro. Falhou em reconhecer o *alto risco*.", consequencia: null, penalizacao: 2 },
+            ]
+        },
+        {
+            rodada: 6,
+            titulo: "A Meta da Casa e o Impacto da Inflação (Longo Prazo)",
+            tema: "Planeamento (Longo Prazo); Risco e Incerteza (Inflação)",
+            pergunta: "A sua meta de 50.000€ daqui a 10 anos será desvalorizada pela inflação (estimada em 2.5% ao ano). Onde aplica os 500€ deste mês?",
+            opcoes: [
+                { 
+                    texto: "Coloca num Depósito a Prazo (Rendimento 2% ao ano).", 
+                    custo: 500, 
+                    pontuacao: -10, 
+                    feedback: "Mau planeamento. A *Inflação* (2.5%) é superior ao rendimento (2%). Está a perder poder de compra.", 
+                    // CORREÇÃO (Capitalização anual durante 10 anos)
+                    consequencia: (s) => s + 500 * Math.pow((1 + 0.02), 10), 
+                    penalizacao: 1 
+                },
+                { 
+                    texto: "Investe num EFT (fundo de investimento negociado em bolsa) Global (Rendimento médio 6% ao ano).", 
+                    custo: 500, 
+                    pontuacao: 25, 
+                    feedback: "Decisão de longo prazo. O *Rendimento* (6%) supera a *Inflação* (2.5%). Assumiu risco moderado de forma inteligente.", 
+                    // CORREÇÃO (Capitalização anual durante 10 anos)
+                    consequencia: (s) => s + 500 * Math.pow((1 + 0.06), 10), 
+                    penalizacao: 0 
+                },
+            ]
+        },
+        {
+            rodada: 7,
+            titulo: "Pagamentos e Irrevogabilidade (Segurança e Fraude)",
+            tema: "Sist. Financeiro: Meios de Pagamento; Prevenção de Fraude",
+            pergunta: "Precisa de pagar 150€ a um desconhecido online. Este insiste em Transferência Imediata (MB Way) em vez de um cartão virtual, porque é 'mais rápido'.",
+            opcoes: [
+                { texto: "Envia a Transferência Imediata (MB Way) para não perder o negócio.", custo: 150, pontuacao: -15, feedback: "Alto Risco! A *Transferência Imediata* é irrevogável. Falhou na *Prevenção de Fraude*.", consequencia: null, penalizacao: 3 },
+                { texto: "Sugere um Cartão Virtual Pré-Pago para ter proteção e limitar o risco.", custo: 150, pontuacao: 20, feedback: "Decisão de segurança. Usou um *meio de pagamento* que protege os seus fundos (Prevenção de Fraude).", consequencia: null, penalizacao: 0 },
+            ]
+        },
+        {
+            rodada: 8,
+            titulo: "O Portfólio (Diversificação e Risco)",
+            tema: "Poupança: Aplicações da Poupança; Risco e Incerteza",
+            pergunta: "Tem 2000€ disponíveis para investir a longo prazo. Deve dividir: Ações Alto Risco (80%) e Depósitos (20%); ETF Global (50%), Depósitos (30%), Obrigações (20%).",
+            opcoes: [
+                { texto: "A) Ações (80%) e Depósitos (20%).", custo: 0, pontuacao: -5, feedback: "Demasiado *Risco*. Não há *Diversificação* suficiente e o capital está muito exposto à incerteza.", consequencia: null, penalizacao: 2 },
+                { texto: "B) ETF Global (50%), Depósitos (30%), Obrigações (20%).", custo: 0, pontuacao: 25, feedback: "Estratégia profissional. Demonstra excelente *Diversificação* e avaliação do risco.", consequencia: null, penalizacao: 0 },
+            ]
+        },
+        {
+            rodada: 9,
+            titulo: "O Empréstimo do Carro (Taxa de Esforço)",
+            tema: "Crédito: Capacidades Financeiras; Responsabilidades do Crédito",
+            pergunta: "Precisa de um carro. A prestação mensal (120€) compromete 24% do seu rendimento líquido disponível (500€). O banco sugere 48 meses de prestação. Deve reduzir a prestação?",
+            opcoes: [
+                { texto: "Pede um crédito mais longo (72 meses) para reduzir a prestação para 80€ (16% de taxa de esforço).", custo: 0, pontuacao: 15, feedback: "Melhor gestão! Reduziu a *Taxa de Esforço* para um nível seguro (melhor *capacidade financeira*), embora pague mais juros.", consequencia: null, penalizacao: 1 },
+                { texto: "Mantém a prestação de 120€ (24% de taxa de esforço) para pagar mais rápido.", custo: 0, pontuacao: -5, feedback: "Risco desnecessário. A *Taxa de Esforço* de 24% é alta e limita as suas capacidades para imprevistos.", consequencia: null, penalizacao: 3 },
             ]
         },
         { 
-            id: 2, 
-            titulo: "Rendimento Extra e Poupança",
-            pergunta: "Conseguiram um pequeno trabalho e ganharam 150€. Têm um objetivo de poupança de 300€ para uma viagem a médio prazo.",
+            rodada: 10,
+            titulo: "Balanço Final: Capacidade Financeira (Custo do Risco)",
+            tema: "Direitos e Deveres: Informação Financeira; Ética",
+            pergunta: "O vosso grupo precisa de 300€ para um curso de formação. Avaliem a vossa capacidade financeira com base no vosso *histórico* de dívidas e poupanças (influência das rodadas anteriores).",
             opcoes: [
-                { texto: "Depositar os 150€ numa Conta Poupança com juro de 2% (taxa anual).", custo: -150, pontuacao: 3, feedback: "✅ Decisão inteligente. Começaram a poupar para o objetivo, e o dinheiro está a render.", consequencia: (s) => s + 150 * 0.02, penalizacao: null }, 
-                { texto: "Usar os 150€ para um jantar de grupo imediato.", custo: 150, pontuacao: -1, feedback: "❌ Mau: Prejuízo na poupança a médio prazo. Priorizaram o prazer imediato (supérfluo).", consequencia: null, penalizacao: 1 }, 
-                { texto: "Investir os 150€ em Criptomoedas de alto risco (promessa de 50% de lucro).", custo: 150, pontuacao: 0, feedback: "⚠️ Arriscado: Embora a intenção seja boa, alto risco não é adequado para objetivos de médio prazo. Se for penalizado por risco alto: 50% de probabilidade de perder tudo (50%) ou ganhar (50%).", consequencia: (s) => { return Math.random() < 0.5 ? s - 150 : s + 150 * 0.5; }, penalizacao: 2 }
-            ]
-        },
-        { 
-            id: 3, 
-            titulo: "Crédito e Responsabilidade (Influência da Decisão 1)",
-            pergunta: "Receberam uma proposta de crédito para comprar uma scooter (meio de transporte) no valor de 1000€. As vossas despesas fixas atuais e o vosso *histórico* de crédito são avaliados pelo banco.",
-            opcoes: [
-                { texto: "Recusar a proposta. Não querem um compromisso de longo prazo sem necessidade imediata.", custo: 0, pontuacao: 3, feedback: "✅ Decisão prudente. Evitaram um compromisso de longo prazo e juros, preservando a capacidade financeira. (+3 pontos).", consequencia: null, penalizacao: null },
-                { texto: "Aceitar a proposta. Assumir a dívida de 1000€ com prestação mensal de 50€ (+10€ em juros).", custo: 0, pontuacao: -3, feedback: "❌ Risco alto. O recurso ao crédito é uma responsabilidade. O banco aumentou o risco devido à vossa má gestão inicial (Decisão 1, se aplicável).", consequencia: (s) => s - 60, penalizacao: 3 } 
-            ]
-        },
-        { 
-            id: 4, 
-            titulo: "Fraude Financeira (Phishing)",
-            pergunta: "Recebem um email a dizer que a vossa conta bancária foi bloqueada e a pedir para clicarem num link para a reativação, introduzindo o NIF e a palavra-chave.",
-            opcoes: [
-                { texto: "Clicar no link e introduzir os dados (estão com pressa!).", custo: 0, pontuacao: -5, feedback: "🚨 GRAVE! Caíram num esquema de *Phishing*! Perda de dados e acesso à conta. Perdem 10% do saldo total.", consequencia: (s) => s * 0.9, penalizacao: 5 },
-                { texto: "Apagar o email e ligar para o banco para confirmar se há algum problema.", custo: 0, pontuacao: 4, feedback: "✅ Excelente: Não partilharam dados. Conhecem as formas de proteção contra fraude financeira.", consequencia: null, penalizacao: null }
-            ]
-        },
-        { 
-            id: 5, 
-            titulo: "Ética Financeira e Pagamentos",
-            pergunta: "Compraram algo online. Na descrição diz 'Cartão de Débito: Pagamento Imediato' ou 'Cartão de Crédito: Pagamento a 30 dias'. Qual escolhem para uma compra de 50€, sabendo que têm saldo na conta?",
-            opcoes: [
-                { texto: "Usar o Cartão de Débito.", custo: 50, pontuacao: 2, feedback: "✅ Correto: Usaram fundos existentes (débito) para uma compra, praticando a ética de não endividamento desnecessário.", consequencia: null, penalizacao: null },
-                { texto: "Usar o Cartão de Crédito.", custo: 0, pontuacao: 0, feedback: "⚠️ Aceitável, mas menos ético se for para adiar o pagamento sem necessidade. Cria o hábito de viver 'a crédito'.", consequencia: null, penalizacao: 1 }
-            ]
-        },
-        { 
-            id: 6, 
-            titulo: "Planeamento a Longo Prazo e Inflação",
-            pergunta: "O vosso grupo pensa em comprar um carro elétrico daqui a 5 anos (custo: 20.000€). Qual é a melhor forma de investir o dinheiro a longo prazo?",
-            opcoes: [
-                { texto: "Deixar o dinheiro numa Conta de Depósito à Ordem (juro 0,05%).", custo: 0, pontuacao: -1, feedback: "❌ Mau: O dinheiro perde valor devido à inflação. Falharam em aplicar a poupança corretamente para o longo prazo.", consequencia: null, penalizacao: 1 },
-                { texto: "Investir num Fundo de Investimento de Baixo Risco (Rentabilidade esperada de 4%).", custo: 0, pontuacao: 4, feedback: "✅ Excelente: Investimento que acompanha ou supera a inflação, alinhado com um objetivo de longo prazo.", consequencia: (s) => s * 1.04, penalizacao: null }, 
-                { texto: "Guardar o dinheiro num mealheiro em casa.", custo: 0, pontuacao: -2, feedback: "❌ Péssimo: Risco de roubo e perda total por inflação. Não compreenderam o funcionamento da poupança/investimento.", consequencia: null, penalizacao: 2 }
-            ]
-        },
-        { 
-            id: 7, 
-            titulo: "O Sistema Financeiro (Bancos e Reguladores)",
-            pergunta: "O vosso banco está a ser alvo de notícias negativas. Qual é a principal função de entidades como o Banco de Portugal e o Banco Central Europeu (BCE) que vos tranquiliza?",
-            opcoes: [
-                { texto: "Garantir a estabilidade do sistema financeiro e supervisionar os bancos.", custo: 0, pontuacao: 3, feedback: "✅ Correto: Compreenderam o papel de regulação e supervisão, que protege os depositantes e o sistema.", consequencia: null, penalizacao: null },
-                { texto: "Aconselhar os clientes sobre as melhores ações para investir.", custo: 0, pontuacao: 0, feedback: "⚠️ Errado: Não é a função primária do banco central/regulador. Isso é papel de consultores.", consequencia: null, penalizacao: null }
-            ]
-        },
-        { 
-            id: 8, 
-            titulo: "Avaliação de Risco e Incerteza",
-            pergunta: "Uma nova oportunidade de investimento surge: investir 100€ num projeto de um amigo. Riscos: 80% de perder tudo, 20% de ganhar 500%.",
-            opcoes: [
-                { texto: "Investir os 100€, pois o potencial de ganho é muito alto.", custo: 100, pontuacao: -2, feedback: "❌ Risco desproporcional. Falharam em avaliar corretamente o risco vs. recompensa. Perdem os 100€.", consequencia: null, penalizacao: 2 },
-                { texto: "Não investir. Não é um risco adequado para o vosso perfil financeiro atual.", custo: 0, pontuacao: 3, feedback: "✅ Decisão sensata: Reconheceram o alto risco e a incerteza, protegendo o capital.", consequencia: null, penalizacao: null }
-            ]
-        },
-        { 
-            id: 9, 
-            titulo: "Direitos e Deveres do Consumidor Financeiro",
-            pergunta: "O vosso banco aumentou as comissões sem aviso prévio. Qual é o vosso direito e dever?",
-            opcoes: [
-                { texto: "Dever: Aceitar e pagar. Não há nada a fazer.", custo: 0, pontuacao: -1, feedback: "❌ Incorreto: Têm direitos, como o de serem informados e de reclamar.", consequencia: null, penalizacao: null },
-                { texto: "Direito: Apresentar reclamação formal no livro de reclamações e no Banco de Portugal, se necessário.", custo: 0, pontuacao: 3, feedback: "✅ Correto: Conhecem os vossos direitos e a via de recurso (reclamar é um direito e dever cívico).", consequencia: null, penalizacao: null }
-            ]
-        },
-        { 
-            id: 10, 
-            titulo: "Balanço Final: Capacidade Financeira (Consequência da Decisão 1, 2, 3)",
-            pergunta: "O vosso grupo precisa de 300€ para um curso de formação. Avaliem a vossa **capacidade financeira** com base no vosso *histórico* de dívidas e poupanças (influência das rodadas anteriores).",
-            opcoes: [
-                { texto: "Pedir um empréstimo. (O custo de juros é influenciado pelas penalizações de risco e crédito acumuladas).", custo: 0, pontuacao: 0, feedback: "⚠️ Depende: O empréstimo foi aceite, mas o custo de juros é de 10% (normal) + 2% por cada ponto de penalização acumulada.", consequencia: (s) => s - 300 - (300 * (0.10 + penalizacaoRisco * 0.02)), penalizacao: 0 },
-                { texto: "Usar a poupança acumulada no saldo atual (Se o saldo for superior a 300€).", custo: 300, pontuacao: 4, feedback: "✅ Ótimo: Se o saldo for suficiente, usaram a poupança para suprir a necessidade sem recorrer a crédito. (+4 pontos).", consequencia: null, penalizacao: 0 }
+                { 
+                    texto: "Pedir um empréstimo de 300€. (O juro é influenciado pelas penalizações de risco e crédito acumuladas).", 
+                    custo: 0, 
+                    pontuacao: -2, 
+                    feedback: "⚠️ ALTO CUSTO: O seu histórico de risco fez o empréstimo ser mais caro. Assumiu o custo total do seu mau planeamento inicial.", 
+                    // Novo Saldo = Saldo Atual - Custo Principal (300) - Juros Acumulados
+                    consequencia: (s) => s - 300 - (300 * (0.10 + penalizacaoRisco * 0.02)), 
+                    penalizacao: 0
+                },
+                { 
+                    texto: "Usar a poupança acumulada no saldo atual (Se o saldo for superior a 300€).", 
+                    custo: 300, 
+                    pontuacao: 4, 
+                    feedback: "✅ Ótimo: Se o saldo for suficiente, usaram a poupança para suprir a necessidade sem recorrer a crédito. (+4 pontos).", 
+                    consequencia: null, 
+                    penalizacao: 0
+                }
             ]
         }
     ];
@@ -493,6 +585,7 @@
                 msgEmailEl.textContent = `Código '${codigoRegisto}' enviado com sucesso! O jogo irá começar...`;
                 iniciarJogo(membros);
             }, function(error) {
+                // SE HOUVER ERRO DE ENVIO DO EMAIL DE REGISTO, O JOGO COMEÇA IGUALMENTE
                 msgEmailEl.style.backgroundColor = 'var(--cor-alerta)';
                 msgEmailEl.style.color = 'white';
                 msgEmailEl.textContent = `Erro ao enviar o código: ${error.text}. Por favor, anote o código: ${codigoRegisto}. O jogo irá começar...`;
@@ -534,8 +627,15 @@
         document.getElementById('rodadaAtual').textContent = rodada + 1;
         document.getElementById('saldoAtual').textContent = saldo.toFixed(2) + '€';
         document.getElementById('tituloDecisao').textContent = `Decisão ${rodada + 1}: ${decisaoAtual.titulo}`;
-        document.getElementById('descricaoDecisao').textContent = decisaoAtual.pergunta;
-
+       
+        let perguntaFormatada = decisaoAtual.pergunta;
+        
+        // Se a pergunta contiver o placeholder, substitui pelo saldo atual.
+        if (perguntaFormatada.includes('[SALDO_AQUI]')) {
+            perguntaFormatada = perguntaFormatada.replace('[SALDO_AQUI]', saldo.toFixed(2));
+        }
+        
+        document.getElementById('descricaoDecisao').textContent = perguntaFormatada;
         const opcoesDiv = document.getElementById('opcoesDecisao');
         opcoesDiv.innerHTML = '';
         document.getElementById('feedback').style.display = 'none';
@@ -595,6 +695,17 @@
             // >>>>>> CORREÇÃO
         }
 
+        // --- LÓGICA ESPECÍFICA DA RODADA 10: Aplicar Custo do Empréstimo ---
+        if (rodada === 9 && decisaoAtual.opcoes[indiceOpcao].texto.includes('Pedir um empréstimo')) { 
+             // Se for Rodada 10 (indice 9) e escolher pedir empréstimo
+             const juroPercentual = 0.10 + penalizacaoRisco * 0.02; // 10% base + 2% por ponto de risco
+             const custoJuro = 300 * juroPercentual;
+             const custoTotal = 300 + custoJuro;
+             
+             // O novo saldo já está calculado na consequência (s - 300 - custoJuro)
+             feedbackHTML += `<p><strong>Custo Final do Empréstimo:</strong> 300.00€ (Principal) + ${custoJuro.toFixed(2)}€ (Juros, Taxa de ${Math.round(juroPercentual * 100)}%). O seu saldo reflete esta dedução.</p>`;
+        }
+        // --- FIM LÓGICA ESPECÍFICA ---
 
 
         // 5. Atualização e Feedback
@@ -642,7 +753,7 @@
         document.getElementById('resultadoSaldoFinal').textContent = saldoFinalArredondado + '€';
         document.getElementById('resultadoTempo').textContent = tempoFinalFormatado;
         
-        // Envio do resultado por EmailJS (AGORA CORRIGIDO)
+        // Envio do resultado por EmailJS 
         enviarResultadoFinal(saldoFinalArredondado, tempoFinalFormatado);
     }
 
@@ -678,5 +789,5 @@
 </script>
 
 </body>
-
 </html>
+
